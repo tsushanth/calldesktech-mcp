@@ -1,0 +1,17 @@
+{
+  "name": "calldesktech-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for the CallDeskTech API — build, publish and operate voice agents (flows, subflows, knowledge bases, numbers, calls, batch calls, webhooks) from any MCP client.",
+  "type": "module",
+  "main": "index.js",
+  "bin": { "calldesktech-mcp": "index.js" },
+  "files": ["index.js", "README.md", "LICENSE"],
+  "keywords": ["mcp", "model-context-protocol", "voice-agents", "calldesktech", "telephony"],
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "repository": { "type": "git", "url": "git+https://github.com/tsushanth/calldesktech-mcp.git" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^3.25.0"
+  }
+}
