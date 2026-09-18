@@ -66,7 +66,8 @@ Auto-advancing (act immediately on entry, no caller turn needed; the prompt is w
 - code           — params.code: JavaScript sandbox, "dv" holds collected data, return an object to merge into it
 - mcp            — params { serverUrl, toolName, toolArguments (JSON string), headers (JSON string, e.g. Authorization) }
 - payment        — params { amount, paymentConnector, description }; sets payment_status = succeeded | failed
-- transfer       — params.transferTo (E.164); ends the AI's involvement
+- transfer       — params.transferTo (E.164); ends the AI's involvement; optional params.spokenMessage (said word for word)
+- agent_transfer — params.targetAgentId (another agent in the workspace); hands the live call to that agent's latest published version; optional params.spokenMessage; no outgoing edges
 - press_digit    — params.digits (0-9 * # A-D w=pause, {{field}} ok); EXACTLY ONE edge; plays DTMF tones
 - logic_split    — no prompt; edges use structured conditions { field, operator (== != > < >= <=), value }; a conditionless edge is the default
 - subflow_ref    — params.subflowId; runs a reusable sub-graph (create it with create_subflow) then leaves via THIS node's edges
@@ -136,7 +137,7 @@ server.registerTool('run_batch_call', { description: 'START a batch — dials ev
 
 // ---- webhooks
 server.registerTool('list_webhooks', { description: 'List webhooks.', annotations: READ, inputSchema: {} }, run(async () => api('GET', `/tenants/${await tenant()}/webhooks`)));
-server.registerTool('create_webhook', { description: 'Register a webhook. Events: call.completed, call.transferred. Returns the signing secret.', annotations: WRITE, inputSchema: { url: z.string().url(), events: z.array(z.enum(['call.completed', 'call.transferred'])).optional() } }, run(async (a) => api('POST', `/tenants/${await tenant()}/webhooks`, a)));
+server.registerTool('create_webhook', { description: 'Register a webhook. Events: call.started, call.completed, call.analyzed, call.transferred. Returns the signing secret.', annotations: WRITE, inputSchema: { url: z.string().url(), events: z.array(z.enum(['call.started', 'call.completed', 'call.analyzed', 'call.transferred'])).optional() } }, run(async (a) => api('POST', `/tenants/${await tenant()}/webhooks`, a)));
 server.registerTool('delete_webhook', { description: 'Delete a webhook.', annotations: DESTROY, inputSchema: { webhookId: z.string() } }, run(async (a) => api('DELETE', `/tenants/${await tenant()}/webhooks/${a.webhookId}`)));
 
 // ---- analytics
