@@ -10,7 +10,7 @@ An [MCP](https://modelcontextprotocol.io) server for the [CallDeskTech](https://
 **Claude Code**
 
 ```bash
-claude mcp add calldesktech --env CALLDESK_API_KEY=cdk_live_... -- npx -y github:tsushanth/calldesktech-mcp
+claude mcp add calldesktech --env CALLDESK_API_KEY=cdk_live_... -- npx -y calldesktech-mcp
 ```
 
 **Claude Desktop / any client** — `mcpServers` entry:
@@ -20,7 +20,7 @@ claude mcp add calldesktech --env CALLDESK_API_KEY=cdk_live_... -- npx -y github
   "mcpServers": {
     "calldesktech": {
       "command": "npx",
-      "args": ["-y", "github:tsushanth/calldesktech-mcp"],
+      "args": ["-y", "calldesktech-mcp"],
       "env": { "CALLDESK_API_KEY": "cdk_live_..." }
     }
   }
