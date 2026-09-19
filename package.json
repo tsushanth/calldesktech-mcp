@@ -1,6 +1,6 @@
 {
   "name": "calldesktech-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MCP server for the CallDeskTech API — build, publish and operate voice agents (flows, subflows, knowledge bases, numbers, calls, batch calls, webhooks) from any MCP client.",
   "type": "module",
   "main": "index.js",

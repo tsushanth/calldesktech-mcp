@@ -39,7 +39,7 @@ Start with **`flow_authoring_guide`** — it documents every node type, its para
 | Area | Tools |
 |---|---|
 | Account | `whoami` |
-| Agents | `list_agents` `create_agent` `get_agent` `rename_agent` `delete_agent` `list_agent_versions` `publish_agent_version` |
+| Agents | `list_agents` `list_agent_templates` `create_agent_from_template` `create_agent` `get_agent` `rename_agent` `delete_agent` `list_agent_versions` `publish_agent_version` |
 | Subflows | `list_subflows` `create_subflow` `update_subflow` `delete_subflow` |
 | Knowledge | `list_knowledge_bases` `create_knowledge_base` `add_knowledge_items` `delete_knowledge_base` |
 | Numbers & calls | `list_phone_numbers` `set_number_routing` `place_call` `list_calls` `get_call` |
