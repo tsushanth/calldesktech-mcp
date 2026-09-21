@@ -4,33 +4,22 @@ An [MCP](https://modelcontextprotocol.io) server for the [CallDeskTech](https://
 
 ## Setup
 
-1. In CallDeskTech, open **Settings → API Keys** and create a key (`cdk_live_…`). It is shown once and is pinned to one workspace.
-2. Add the server to your MCP client.
+**Hosted (recommended): no install, no API key.** Add `https://calldesk.tech/mcp` as a remote MCP server. Your browser opens, you sign in, pick a workspace and click Allow.
 
-**Claude Code**
+```bash
+claude mcp add --transport http calldesktech https://calldesk.tech/mcp
+```
+
+**Local (API key).** For clients that cannot use the hosted server, run this package over stdio with a key from **Settings → API Keys** (`cdk_live_…`, shown once, pinned to one workspace):
 
 ```bash
 claude mcp add calldesktech --env CALLDESK_API_KEY=cdk_live_... -- npx -y calldesktech-mcp
 ```
 
-**Claude Desktop / any client** — `mcpServers` entry:
-
-```json
-{
-  "mcpServers": {
-    "calldesktech": {
-      "command": "npx",
-      "args": ["-y", "calldesktech-mcp"],
-      "env": { "CALLDESK_API_KEY": "cdk_live_..." }
-    }
-  }
-}
-```
-
 | Variable | Required | Default |
 |---|---|---|
-| `CALLDESK_API_KEY` | yes | — |
-| `CALLDESK_BASE_URL` | no | `https://calldesk-tech.fly.dev/api/v1` |
+| `CALLDESK_API_KEY` | yes (local only) | — |
+| `CALLDESK_BASE_URL` | no | `https://calldesk.tech/api/v1` |
 
 ## Tools
 
