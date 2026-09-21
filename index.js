@@ -85,8 +85,15 @@ Built-in templates use {{business_name}} and {{agent_name}}; set them via create
 
 ## Workflow
 1) create_agent  2) (optional) create_knowledge_base with agent_id + add_knowledge_items, create_subflow
-3) publish_agent_version (versions are immutable)  4) set_number_routing to point a number at the new version's id
-5) place_call to test.`;
+3) publish_agent_version (versions are immutable)  4) set_number_routing to point a number at the new version's id,
+   or to an environment (staging/production) so later promotions take effect with no further routing call
+5) place_call to test.
+
+## Environments (staging/production)
+Every agent has both from creation. A number/batch call can route to an environment instead of a raw version
+(set_number_routing's environmentId) — whatever version that environment currently points to is what runs.
+promote_agent_environment repoints an environment at a version; every number already routed to it picks the change
+up immediately. Rolling back is just promoting an older version again.`;
 
 server.registerTool('flow_authoring_guide', { description: 'Read this FIRST before publishing a flow: node types, params, edge rules, gotchas.', annotations: READ, inputSchema: {} }, async () => ({ content: [{ type: 'text', text: GUIDE }] }));
 server.registerTool('whoami', { description: 'Show the workspace this API key is pinned to.', annotations: READ, inputSchema: {} }, run(() => api('GET', '/me')));
@@ -127,7 +134,9 @@ server.registerTool('delete_knowledge_base', { description: 'Delete a knowledge 
 
 // ---- numbers & calls
 server.registerTool('list_phone_numbers', { description: 'List phone numbers and which agent versions they route to.', annotations: READ, inputSchema: {} }, run(async () => api('GET', `/tenants/${await tenant()}/phone-numbers`)));
-server.registerTool('set_number_routing', { description: 'Route a number’s inbound or outbound calls to an agent version (null disables that direction).', annotations: WRITE, inputSchema: { phoneNumberId: z.string(), direction: z.enum(['inbound', 'outbound']), agentVersionId: z.string().nullable() } }, run((a) => api('POST', `/phone-numbers/${a.phoneNumberId}/routing`, { direction: a.direction, agentVersionId: a.agentVersionId })));
+server.registerTool('set_number_routing', { description: 'Route a number’s inbound or outbound calls to a specific agent version, OR to an environment (see list_agent_environments/promote_agent_environment) — pass exactly one of agentVersionId or environmentId. Environment routing means promoting a new version later takes effect on this number automatically. Pass agentVersionId: null to disable a direction.', annotations: WRITE, inputSchema: { phoneNumberId: z.string(), direction: z.enum(['inbound', 'outbound']), agentVersionId: z.string().nullable().optional(), environmentId: z.string().optional() } }, run((a) => api('POST', `/phone-numbers/${a.phoneNumberId}/routing`, { direction: a.direction, agentVersionId: a.agentVersionId, environmentId: a.environmentId })));
+server.registerTool('list_agent_environments', { description: 'List an agent’s staging/production environments and which version each currently points to (null if nothing promoted yet).', annotations: READ, inputSchema: { agentId: z.string() } }, run((a) => api('GET', `/agents/${a.agentId}/environments`)));
+server.registerTool('promote_agent_environment', { description: 'Promote a version into staging or production. Every number/batch call routed to that environment picks up the new version immediately — no re-routing needed. Rolling back is promoting an older version again.', annotations: WRITE, inputSchema: { agentId: z.string(), name: z.enum(['staging', 'production']), versionId: z.string() } }, run((a) => api('POST', `/agents/${a.agentId}/environments/${a.name}/promote`, { versionId: a.versionId })));
 server.registerTool('place_call', { description: 'Place a REAL outbound phone call (costs money) from one of your numbers using its outbound agent.', annotations: COSTS, inputSchema: { phoneNumberId: z.string(), toNumber: z.string().describe('E.164, e.g. +14155550123') } }, run((a) => api('POST', `/phone-numbers/${a.phoneNumberId}/call`, { toNumber: a.toNumber })));
 server.registerTool('list_calls', { description: 'List recent calls.', annotations: READ, inputSchema: { limit: z.number().int().min(1).max(200).optional() } }, run(async (a) => api('GET', `/tenants/${await tenant()}/calls?limit=${a.limit ?? 25}`)));
 server.registerTool('list_agent_templates', { description: 'List the built-in agent templates (receptionist, medical receptionist, payment collection, IVR navigation, etc.) that can be installed with create_agent_from_template.', annotations: READ, inputSchema: {} }, run(() => api('GET', '/agent-templates')));
