@@ -1,9 +1,12 @@
 # Changelog
 
-## 1.0.3
+## 1.0.4
 - Add missing read/update tools for parity: `get_subflow`, `get_knowledge_base`, `update_knowledge_base`, `get_webhook`, `update_webhook`
 - Fix `McpServer` version to match package
 - README: document all tools including `get_batch_call`, `list_agent_environments`, `promote_agent_environment`
+
+## 1.0.3
+- Bump version to resolve npm staged publish conflict
 
 ## 1.0.2
 - Bump version to resolve npm publish conflict with staged 1.0.1
