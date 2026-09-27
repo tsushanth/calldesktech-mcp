@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.7
+- Add `search_numbers` and `buy_number` tools for phone number provisioning
+
 ## 1.0.6
 - Add `list_voices` and `get_voice` tools for voice discovery
 
