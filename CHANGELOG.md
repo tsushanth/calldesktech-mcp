@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.5
+- Add `list_voices` and `get_voice` tools for voice discovery
+
 ## 1.0.4
 - Add missing read/update tools for parity: `get_subflow`, `get_knowledge_base`, `update_knowledge_base`, `get_webhook`, `update_webhook`
 - Fix `McpServer` version to match package

@@ -42,7 +42,7 @@ const ok = (data) => ({ content: [{ type: 'text', text: JSON.stringify(data, nul
 const fail = (err) => ({ isError: true, content: [{ type: 'text', text: err instanceof Error ? err.message : String(err) }] });
 const run = (fn) => async (args) => { try { return ok(await fn(args)); } catch (e) { return fail(e); } };
 
-const server = new McpServer({ name: 'calldesktech', version: '1.0.4' });
+const server = new McpServer({ name: 'calldesktech', version: '1.0.5' });
 const READ = { readOnlyHint: true };
 const WRITE = { readOnlyHint: false, destructiveHint: false };
 const DESTROY = { readOnlyHint: false, destructiveHint: true };
@@ -145,6 +145,10 @@ server.registerTool('list_calls', { description: 'List recent calls.', annotatio
 server.registerTool('list_agent_templates', { description: 'List the built-in agent templates (receptionist, medical receptionist, payment collection, IVR navigation, etc.) that can be installed with create_agent_from_template.', annotations: READ, inputSchema: {} }, run(() => api('GET', '/agent-templates')));
 server.registerTool('create_agent_from_template', { description: 'Create a ready-to-call agent from a built-in template and publish its first version. voiceEngine "poc" runs on CallDesk; "retell" also creates the equivalent Retell agent (some node types are approximated; see warnings). transferTo (E.164) fills empty transfer numbers; functionUrl fills empty function webhooks. variables sets the template\'s {{placeholders}}, e.g. {"business_name": "Acme Dental", "agent_name": "Sam"} (business_name defaults to the account name; see list_agent_templates for each template\'s defaultVariables and placeholders).', annotations: WRITE, inputSchema: { templateId: z.string(), name: z.string().optional(), voiceEngine: z.enum(['poc', 'retell']).default('poc'), transferTo: z.string().optional(), functionUrl: z.string().url().optional(), variables: z.record(z.string()).optional(), language: z.enum(['en', 'es', 'fr', 'pt-BR', 'it', 'nl', 'hi', 'de', 'pl', 'id', 'ar']).optional().describe('Agent language (default en); non-English uses the ElevenLabs voice') } }, run(async (a) => api('POST', `/tenants/${await tenant()}/agents/from-template`, a)));
 server.registerTool('get_call', { description: 'Get one call: transcript, outcome, duration, transfer status.', annotations: READ, inputSchema: { callId: z.string() } }, run((a) => api('GET', `/calls/${a.callId}`)));
+
+// ---- voices
+server.registerTool('list_voices', { description: 'List available TTS voices for the workspace, with previewable samples.', annotations: READ, inputSchema: {} }, run(async () => api('GET', `/tenants/${await tenant()}/voices`)));
+server.registerTool('get_voice', { description: 'Get a single voice by id: name, gender, language, accent, sample URL, and available backends.', annotations: READ, inputSchema: { voiceId: z.string() } }, run((a) => api('GET', `/voices/${a.voiceId}`)));
 
 // ---- batch calls
 server.registerTool('list_batch_calls', { description: 'List batch calls.', annotations: READ, inputSchema: {} }, run(async () => api('GET', `/tenants/${await tenant()}/batch-calls`)));
