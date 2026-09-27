@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.12
+## 1.0.13
 - Add `delete_knowledge_items` tool
 - Add contacts/CRM tools: `list_contacts`, `manage_contact`
 
