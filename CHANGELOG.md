@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.6
+- Add `list_voices` and `get_voice` tools for voice discovery
+
 ## 1.0.5
 - Add `list_voices` and `get_voice` tools for voice discovery
 
