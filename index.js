@@ -42,7 +42,7 @@ const ok = (data) => ({ content: [{ type: 'text', text: JSON.stringify(data, nul
 const fail = (err) => ({ isError: true, content: [{ type: 'text', text: err instanceof Error ? err.message : String(err) }] });
 const run = (fn) => async (args) => { try { return ok(await fn(args)); } catch (e) { return fail(e); } };
 
-const server = new McpServer({ name: 'calldesktech', version: '1.0.9' });
+const server = new McpServer({ name: 'calldesktech', version: '1.0.10' });
 const READ = { readOnlyHint: true };
 const WRITE = { readOnlyHint: false, destructiveHint: false };
 const DESTROY = { readOnlyHint: false, destructiveHint: true };
@@ -97,6 +97,62 @@ up immediately. Rolling back is just promoting an older version again.`;
 
 server.registerTool('flow_authoring_guide', { description: 'Read this FIRST before publishing a flow: node types, params, edge rules, gotchas.', annotations: READ, inputSchema: {} }, async () => ({ content: [{ type: 'text', text: GUIDE }] }));
 server.registerTool('whoami', { description: 'Show the workspace this API key is pinned to.', annotations: READ, inputSchema: {} }, run(() => api('GET', '/me')));
+server.registerTool('account_overview', { description: 'Get a complete snapshot of your account: agents, phone numbers, knowledge bases, subflows, webhooks, and recent call/SMS activity.', annotations: READ, inputSchema: {} }, run(async () => {
+  const t = await tenant();
+  const results = await Promise.allSettled([
+    api('GET', `/tenants/${t}/agents`),
+    api('GET', `/tenants/${t}/phone-numbers`),
+    api('GET', `/tenants/${t}/knowledge-bases`),
+    api('GET', `/tenants/${t}/subflows`),
+    api('GET', `/tenants/${t}/webhooks`),
+    api('GET', `/tenants/${t}/calls?limit=5`),
+    api('GET', `/tenants/${t}/sms?limit=5`),
+    api('GET', `/tenants/${t}/batch-calls`),
+  ]);
+  const sections = [];
+  sections.push('=== Account Overview ===');
+  const agentRes = results[0];
+  if (agentRes.status === 'fulfilled' && Array.isArray(agentRes.value)) {
+    sections.push(`Agents: ${agentRes.value.length}`);
+    for (const a of agentRes.value.slice(0, 5)) {
+      sections.push(`  ${a.name} (id=${a.id})`);
+    }
+  } else { sections.push('Agents: failed to load'); }
+  const numRes = results[1];
+  if (numRes.status === 'fulfilled' && Array.isArray(numRes.value)) {
+    sections.push(`Phone Numbers: ${numRes.value.length}`);
+    for (const n of numRes.value.slice(0, 5)) {
+      sections.push(`  ${n.phoneNumber || n.number || n.id} (id=${n.id})`);
+    }
+  } else { sections.push('Phone Numbers: failed to load'); }
+  const kbRes = results[2];
+  if (kbRes.status === 'fulfilled' && Array.isArray(kbRes.value)) {
+    sections.push(`Knowledge Bases: ${kbRes.value.length}`);
+  } else { sections.push('Knowledge Bases: failed to load'); }
+  const sfRes = results[3];
+  if (sfRes.status === 'fulfilled' && Array.isArray(sfRes.value)) {
+    sections.push(`Subflows: ${sfRes.value.length}`);
+  } else { sections.push('Subflows: failed to load'); }
+  const whRes = results[4];
+  if (whRes.status === 'fulfilled' && Array.isArray(whRes.value)) {
+    sections.push(`Webhooks: ${whRes.value.length}`);
+  } else { sections.push('Webhooks: failed to load'); }
+  const callRes = results[5];
+  if (callRes.status === 'fulfilled') {
+    const calls = Array.isArray(callRes.value) ? callRes.value : callRes.value.calls || callRes.value.data || [];
+    sections.push(`Recent Calls: ${calls.length} (last 5 shown)`);
+  } else { sections.push('Recent Calls: failed to load'); }
+  const smsRes = results[6];
+  if (smsRes.status === 'fulfilled') {
+    const msgs = Array.isArray(smsRes.value) ? smsRes.value : smsRes.value.messages || smsRes.value.data || [];
+    sections.push(`Recent SMS: ${msgs.length} (last 5 shown)`);
+  } else { sections.push('Recent SMS: failed to load'); }
+  const batchRes = results[7];
+  if (batchRes.status === 'fulfilled' && Array.isArray(batchRes.value)) {
+    sections.push(`Batch Calls: ${batchRes.value.length}`);
+  } else { sections.push('Batch Calls: failed to load'); }
+  return { content: [{ type: 'text', text: sections.join('\n') }] };
+}));
 
 // ---- agents
 server.registerTool('list_agents', { description: 'List agents with their latest version’s engine/voice and routed phone numbers.', annotations: READ, inputSchema: {} }, run(async () => api('GET', `/tenants/${await tenant()}/agents`)));
@@ -174,10 +230,18 @@ server.registerTool('list_webhooks', { description: 'List webhooks.', annotation
 server.registerTool('create_webhook', { description: 'Register a webhook. Events: call.started, call.completed, call.analyzed, call.transferred. Returns the signing secret.', annotations: WRITE, inputSchema: { url: z.string().url(), events: z.array(z.enum(['call.started', 'call.completed', 'call.analyzed', 'call.transferred'])).optional() } }, run(async (a) => api('POST', `/tenants/${await tenant()}/webhooks`, a)));
 server.registerTool('get_webhook', { description: 'Get a webhook.', annotations: READ, inputSchema: { webhookId: z.string() } }, run(async (a) => api('GET', `/tenants/${await tenant()}/webhooks/${a.webhookId}`)));
 server.registerTool('update_webhook', { description: 'Update a webhook URL or events.', annotations: WRITE, inputSchema: { webhookId: z.string(), url: z.string().url().optional(), events: z.array(z.enum(['call.started', 'call.completed', 'call.analyzed', 'call.transferred'])).optional() } }, run(async ({ webhookId, ...b }) => api('PATCH', `/tenants/${await tenant()}/webhooks/${webhookId}`, b)));
+server.registerTool('test_webhook', { description: 'Send a test event to a webhook URL to verify it is working.', annotations: WRITE, inputSchema: { webhookId: z.string(), event: z.enum(['call.started', 'call.completed', 'call.analyzed', 'call.transferred']).optional().describe('Which event type to simulate') } }, run(async (a) => api('POST', `/tenants/${await tenant()}/webhooks/${a.webhookId}/test`, { event: a.event })));
 server.registerTool('delete_webhook', { description: 'Delete a webhook.', annotations: DESTROY, inputSchema: { webhookId: z.string() } }, run(async (a) => api('DELETE', `/tenants/${await tenant()}/webhooks/${a.webhookId}`)));
 
 // ---- analytics
 server.registerTool('get_analytics', { description: 'Call analytics by day.', annotations: READ, inputSchema: { days: z.enum(['7', '30', '90']).default('30') } }, run(async (a) => api('GET', `/tenants/${await tenant()}/analytics?days=${a.days}`)));
+server.registerTool('get_usage', { description: 'Get usage and billing breakdown: call minutes, SMS segments, number rental costs, and estimated spend for a date range.', annotations: READ, inputSchema: { startDate: z.string().optional().describe('ISO date (YYYY-MM-DD), defaults to start of current month'), endDate: z.string().optional().describe('ISO date (YYYY-MM-DD), defaults to today'), granularity: z.enum(['day', 'month']).optional().default('day').describe('Aggregate by day or month') } }, run(async (a) => {
+  const params = new URLSearchParams();
+  if (a.startDate) params.set('startDate', a.startDate);
+  if (a.endDate) params.set('endDate', a.endDate);
+  params.set('granularity', a.granularity);
+  return api('GET', `/tenants/${await tenant()}/usage?${params.toString()}`);
+}));
 server.registerTool('get_qa_overview', { description: 'QA scores, resolution rate and transfer metrics.', annotations: READ, inputSchema: { days: z.enum(['7', '30', '90']).default('30') } }, run(async (a) => api('GET', `/tenants/${await tenant()}/qa/overview?days=${a.days}`)));
 
 await server.connect(new StdioServerTransport());

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.10
+- Add `account_overview` (aggregated workspace snapshot)
+- Add `get_usage` (billing and usage breakdown with date range / granularity)
+- Add `test_webhook` (send test event to verify webhook endpoint)
+
 ## 1.0.9
 - Add SMS tools: `send_sms`, `list_sms`, `get_sms`
 
