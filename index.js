@@ -42,7 +42,7 @@ const ok = (data) => ({ content: [{ type: 'text', text: JSON.stringify(data, nul
 const fail = (err) => ({ isError: true, content: [{ type: 'text', text: err instanceof Error ? err.message : String(err) }] });
 const run = (fn) => async (args) => { try { return ok(await fn(args)); } catch (e) { return fail(e); } };
 
-const server = new McpServer({ name: 'calldesktech', version: '1.0.0' });
+const server = new McpServer({ name: 'calldesktech', version: '1.0.2' });
 const READ = { readOnlyHint: true };
 const WRITE = { readOnlyHint: false, destructiveHint: false };
 const DESTROY = { readOnlyHint: false, destructiveHint: true };
@@ -122,13 +122,16 @@ server.registerTool('publish_agent_version', {
 
 // ---- subflows
 server.registerTool('list_subflows', { description: 'List subflows (library ones plus the given agent’s own).', annotations: READ, inputSchema: { agentId: z.string().optional() } }, run(async (a) => api('GET', `/tenants/${await tenant()}/subflows${a.agentId ? `?agentId=${a.agentId}` : ''}`)));
-server.registerTool('create_subflow', { description: 'Create a reusable sub-graph. Reference it from a subflow_ref node (params.subflowId). Its zero-edge nodes are exits back to the ref node’s edges.', annotations: WRITE, inputSchema: { name: z.string(), scope: z.enum(['agent', 'library']).default('agent'), agentId: z.string().optional(), nodes: z.array(z.record(z.any())), startNodeId: z.string() } }, run(async (a) => api('POST', `/tenants/${await tenant()}/subflows`, a)));
+server.registerTool('create_subflow', { description: 'Create a reusable sub-graph. Reference it from a subflow_ref node (params.subflowId). Its zero-edge nodes are exits back to the ref node\'s edges.', annotations: WRITE, inputSchema: { name: z.string(), scope: z.enum(['agent', 'library']).default('agent'), agentId: z.string().optional(), nodes: z.array(z.record(z.any())), startNodeId: z.string() } }, run(async (a) => api('POST', `/tenants/${await tenant()}/subflows`, a)));
+server.registerTool('get_subflow', { description: 'Get a subflow.', annotations: READ, inputSchema: { subflowId: z.string() } }, run(async (a) => api('GET', `/tenants/${await tenant()}/subflows/${a.subflowId}`)));
 server.registerTool('update_subflow', { description: 'Update a subflow. Already-published versions keep their snapshot.', annotations: WRITE, inputSchema: { subflowId: z.string(), name: z.string().optional(), nodes: z.array(z.record(z.any())).optional(), startNodeId: z.string().optional() } }, run(async ({ subflowId, ...b }) => api('PATCH', `/tenants/${await tenant()}/subflows/${subflowId}`, b)));
 server.registerTool('delete_subflow', { description: 'Delete a subflow.', annotations: DESTROY, inputSchema: { subflowId: z.string() } }, run(async (a) => api('DELETE', `/tenants/${await tenant()}/subflows/${a.subflowId}`)));
 
 // ---- knowledge bases
 server.registerTool('list_knowledge_bases', { description: 'List knowledge bases.', annotations: READ, inputSchema: {} }, run(async () => api('GET', `/tenants/${await tenant()}/knowledge-bases`)));
 server.registerTool('create_knowledge_base', { description: 'Create a knowledge base. Set agent_id, or a knowledge_base node will not see its content. Use source_type "manual" then add_knowledge_items, or "website" with source_url.', annotations: WRITE, inputSchema: { name: z.string(), source_type: z.enum(['manual', 'website', 'pdf']), source_url: z.string().optional(), agent_id: z.string().optional() } }, run(async (a) => api('POST', `/tenants/${await tenant()}/knowledge-bases`, a)));
+server.registerTool('get_knowledge_base', { description: 'Get a knowledge base and its items.', annotations: READ, inputSchema: { knowledgeBaseId: z.string() } }, run(async (a) => api('GET', `/knowledge-bases/${a.knowledgeBaseId}`)));
+server.registerTool('update_knowledge_base', { description: 'Update a knowledge base name, source_url or agent_id.', annotations: WRITE, inputSchema: { knowledgeBaseId: z.string(), name: z.string().optional(), source_url: z.string().optional(), agent_id: z.string().optional() } }, run(async ({ knowledgeBaseId, ...b }) => api('PATCH', `/knowledge-bases/${knowledgeBaseId}`, b)));
 server.registerTool('add_knowledge_items', { description: 'Add Q&A items to a knowledge base.', annotations: WRITE, inputSchema: { knowledgeBaseId: z.string(), items: z.array(z.object({ question: z.string(), answer: z.string() })).min(1) } }, run((a) => api('POST', `/knowledge-bases/${a.knowledgeBaseId}/items`, { items: a.items })));
 server.registerTool('delete_knowledge_base', { description: 'Delete a knowledge base and its items.', annotations: DESTROY, inputSchema: { knowledgeBaseId: z.string() } }, run((a) => api('DELETE', `/knowledge-bases/${a.knowledgeBaseId}`)));
 
@@ -152,6 +155,8 @@ server.registerTool('run_batch_call', { description: 'START a batch — dials ev
 // ---- webhooks
 server.registerTool('list_webhooks', { description: 'List webhooks.', annotations: READ, inputSchema: {} }, run(async () => api('GET', `/tenants/${await tenant()}/webhooks`)));
 server.registerTool('create_webhook', { description: 'Register a webhook. Events: call.started, call.completed, call.analyzed, call.transferred. Returns the signing secret.', annotations: WRITE, inputSchema: { url: z.string().url(), events: z.array(z.enum(['call.started', 'call.completed', 'call.analyzed', 'call.transferred'])).optional() } }, run(async (a) => api('POST', `/tenants/${await tenant()}/webhooks`, a)));
+server.registerTool('get_webhook', { description: 'Get a webhook.', annotations: READ, inputSchema: { webhookId: z.string() } }, run(async (a) => api('GET', `/tenants/${await tenant()}/webhooks/${a.webhookId}`)));
+server.registerTool('update_webhook', { description: 'Update a webhook URL or events.', annotations: WRITE, inputSchema: { webhookId: z.string(), url: z.string().url().optional(), events: z.array(z.enum(['call.started', 'call.completed', 'call.analyzed', 'call.transferred'])).optional() } }, run(async ({ webhookId, ...b }) => api('PATCH', `/tenants/${await tenant()}/webhooks/${webhookId}`, b)));
 server.registerTool('delete_webhook', { description: 'Delete a webhook.', annotations: DESTROY, inputSchema: { webhookId: z.string() } }, run(async (a) => api('DELETE', `/tenants/${await tenant()}/webhooks/${a.webhookId}`)));
 
 // ---- analytics
