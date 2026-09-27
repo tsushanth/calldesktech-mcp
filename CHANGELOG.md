@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.14
+- **Remove fake tools:** `list_voices`, `get_voice`, `search_numbers`, `buy_number`, `send_sms`, `list_sms`, `get_sms`, `get_usage`, `delete_knowledge_items`, `manage_contact` — these endpoints do not exist in the live API
+- **Add real tool:** `list_knowledge_items` (`GET /knowledge-bases/{id}/items`) — was documented but missing from MCP
+- Fix `get_knowledge_base` description to not claim it returns items (use `list_knowledge_items` for that)
+- Fix `account_overview` to not reference SMS (no SMS API)
+- Update mock API and E2E tests (39 tests) to only exercise documented endpoints
+
 ## 1.0.13
 - Add `delete_knowledge_items` tool
 - Add contacts/CRM tools: `list_contacts`, `manage_contact`

@@ -42,7 +42,7 @@ const ok = (data) => ({ content: [{ type: 'text', text: JSON.stringify(data, nul
 const fail = (err) => ({ isError: true, content: [{ type: 'text', text: err instanceof Error ? err.message : String(err) }] });
 const run = (fn) => async (args) => { try { return ok(await fn(args)); } catch (e) { return fail(e); } };
 
-const server = new McpServer({ name: 'calldesktech', version: '1.0.13' });
+const server = new McpServer({ name: 'calldesktech', version: '1.0.14' });
 const READ = { readOnlyHint: true };
 const WRITE = { readOnlyHint: false, destructiveHint: false };
 const DESTROY = { readOnlyHint: false, destructiveHint: true };
@@ -97,7 +97,7 @@ up immediately. Rolling back is just promoting an older version again.`;
 
 server.registerTool('flow_authoring_guide', { description: 'Read this FIRST before publishing a flow: node types, params, edge rules, gotchas.', annotations: READ, inputSchema: {} }, async () => ({ content: [{ type: 'text', text: GUIDE }] }));
 server.registerTool('whoami', { description: 'Show the workspace this API key is pinned to.', annotations: READ, inputSchema: {} }, run(() => api('GET', '/me')));
-server.registerTool('account_overview', { description: 'Get a complete snapshot of your account: agents, phone numbers, knowledge bases, subflows, webhooks, and recent call/SMS activity.', annotations: READ, inputSchema: {} }, run(async () => {
+server.registerTool('account_overview', { description: 'Get a complete snapshot of your account: agents, phone numbers, knowledge bases, subflows, webhooks, and recent call activity.', annotations: READ, inputSchema: {} }, run(async () => {
   const t = await tenant();
   const results = await Promise.allSettled([
     api('GET', `/tenants/${t}/agents`),
@@ -106,7 +106,6 @@ server.registerTool('account_overview', { description: 'Get a complete snapshot 
     api('GET', `/tenants/${t}/subflows`),
     api('GET', `/tenants/${t}/webhooks`),
     api('GET', `/tenants/${t}/calls?limit=5`),
-    api('GET', `/tenants/${t}/sms?limit=5`),
     api('GET', `/tenants/${t}/batch-calls`),
   ]);
   const sections = [];
@@ -142,12 +141,7 @@ server.registerTool('account_overview', { description: 'Get a complete snapshot 
     const calls = Array.isArray(callRes.value) ? callRes.value : callRes.value.calls || callRes.value.data || [];
     sections.push(`Recent Calls: ${calls.length} (last 5 shown)`);
   } else { sections.push('Recent Calls: failed to load'); }
-  const smsRes = results[6];
-  if (smsRes.status === 'fulfilled') {
-    const msgs = Array.isArray(smsRes.value) ? smsRes.value : smsRes.value.messages || smsRes.value.data || [];
-    sections.push(`Recent SMS: ${msgs.length} (last 5 shown)`);
-  } else { sections.push('Recent SMS: failed to load'); }
-  const batchRes = results[7];
+  const batchRes = results[6];
   if (batchRes.status === 'fulfilled' && Array.isArray(batchRes.value)) {
     sections.push(`Batch Calls: ${batchRes.value.length}`);
   } else { sections.push('Batch Calls: failed to load'); }
@@ -186,22 +180,14 @@ server.registerTool('delete_subflow', { description: 'Delete a subflow.', annota
 // ---- knowledge bases
 server.registerTool('list_knowledge_bases', { description: 'List knowledge bases.', annotations: READ, inputSchema: {} }, run(async () => api('GET', `/tenants/${await tenant()}/knowledge-bases`)));
 server.registerTool('create_knowledge_base', { description: 'Create a knowledge base. Set agent_id, or a knowledge_base node will not see its content. Use source_type "manual" then add_knowledge_items, or "website" with source_url.', annotations: WRITE, inputSchema: { name: z.string(), source_type: z.enum(['manual', 'website', 'pdf']), source_url: z.string().optional(), agent_id: z.string().optional() } }, run(async (a) => api('POST', `/tenants/${await tenant()}/knowledge-bases`, a)));
-server.registerTool('get_knowledge_base', { description: 'Get a knowledge base and its items.', annotations: READ, inputSchema: { knowledgeBaseId: z.string() } }, run(async (a) => api('GET', `/knowledge-bases/${a.knowledgeBaseId}`)));
+server.registerTool('get_knowledge_base', { description: 'Get a knowledge base.', annotations: READ, inputSchema: { knowledgeBaseId: z.string() } }, run(async (a) => api('GET', `/knowledge-bases/${a.knowledgeBaseId}`)));
 server.registerTool('update_knowledge_base', { description: 'Update a knowledge base name, source_url or agent_id.', annotations: WRITE, inputSchema: { knowledgeBaseId: z.string(), name: z.string().optional(), source_url: z.string().optional(), agent_id: z.string().optional() } }, run(async ({ knowledgeBaseId, ...b }) => api('PATCH', `/knowledge-bases/${knowledgeBaseId}`, b)));
 server.registerTool('add_knowledge_items', { description: 'Add Q&A items to a knowledge base.', annotations: WRITE, inputSchema: { knowledgeBaseId: z.string(), items: z.array(z.object({ question: z.string(), answer: z.string() })).min(1) } }, run((a) => api('POST', `/knowledge-bases/${a.knowledgeBaseId}/items`, { items: a.items })));
-server.registerTool('delete_knowledge_items', { description: 'Delete specific Q&A items from a knowledge base by item id.', annotations: DESTROY, inputSchema: { knowledgeBaseId: z.string(), itemIds: z.array(z.string()).min(1).describe('Item ids to remove') } }, run((a) => api('DELETE', `/knowledge-bases/${a.knowledgeBaseId}/items`, { itemIds: a.itemIds })));
+server.registerTool('list_knowledge_items', { description: 'List Q&A items in a knowledge base.', annotations: READ, inputSchema: { knowledgeBaseId: z.string() } }, run((a) => api('GET', `/knowledge-bases/${a.knowledgeBaseId}/items`)));
 server.registerTool('delete_knowledge_base', { description: 'Delete a knowledge base and all its items.', annotations: DESTROY, inputSchema: { knowledgeBaseId: z.string() } }, run((a) => api('DELETE', `/knowledge-bases/${a.knowledgeBaseId}`)));
 
 // ---- numbers & calls
 server.registerTool('list_phone_numbers', { description: 'List phone numbers and which agent versions they route to.', annotations: READ, inputSchema: {} }, run(async () => api('GET', `/tenants/${await tenant()}/phone-numbers`)));
-server.registerTool('search_numbers', { description: 'Search available phone numbers for purchase. Filter by country (2-letter ISO code), area code, and type. Returns a list of purchasable numbers with monthly cost.', annotations: READ, inputSchema: { country: z.string().length(2).describe('2-letter ISO country code, e.g. US, CA, GB'), areaCode: z.string().optional().describe('3-digit area code to narrow results, e.g. 415'), type: z.enum(['local', 'toll_free', 'mobile']).optional().describe('Number type filter') } }, run(async (a) => {
-  const params = new URLSearchParams();
-  params.set('country', a.country);
-  if (a.areaCode) params.set('areaCode', a.areaCode);
-  if (a.type) params.set('type', a.type);
-  return api('GET', `/tenants/${await tenant()}/available-numbers?${params.toString()}`);
-}));
-server.registerTool('buy_number', { description: 'Purchase a phone number (costs money; charges the account balance). Pass the exact phoneNumber from search_numbers, or country + areaCode to let the API pick one. Optionally attach to an agent immediately via agentId.', annotations: COSTS, inputSchema: { phoneNumber: z.string().optional().describe('Exact E.164 number from search_numbers, e.g. +14155550123'), country: z.string().length(2).optional().describe('2-letter ISO code if not passing phoneNumber'), areaCode: z.string().optional().describe('3-digit area code if not passing phoneNumber'), type: z.enum(['local', 'toll_free', 'mobile']).optional(), agentId: z.string().optional().describe('Attach the purchased number to this agent immediately') } }, run(async (a) => api('POST', `/tenants/${await tenant()}/phone-numbers`, a)));
 server.registerTool('set_number_routing', { description: 'Route a number\'s inbound or outbound calls to a specific agent version, OR to an environment (see list_agent_environments/promote_agent_environment) — pass exactly one of agentVersionId or environmentId. Environment routing means promoting a new version later takes effect on this number automatically. Pass agentVersionId: null to disable a direction.', annotations: WRITE, inputSchema: { phoneNumberId: z.string(), direction: z.enum(['inbound', 'outbound']), agentVersionId: z.string().nullable().optional(), environmentId: z.string().optional() } }, run((a) => api('POST', `/phone-numbers/${a.phoneNumberId}/routing`, { direction: a.direction, agentVersionId: a.agentVersionId, environmentId: a.environmentId })));
 server.registerTool('list_agent_environments', { description: 'List an agent’s staging/production environments and which version each currently points to (null if nothing promoted yet).', annotations: READ, inputSchema: { agentId: z.string() } }, run((a) => api('GET', `/agents/${a.agentId}/environments`)));
 server.registerTool('promote_agent_environment', { description: 'Promote a version into staging or production. Every number/batch call routed to that environment picks up the new version immediately — no re-routing needed. Rolling back is promoting an older version again.', annotations: WRITE, inputSchema: { agentId: z.string(), name: z.enum(['staging', 'production']), versionId: z.string() } }, run((a) => api('POST', `/agents/${a.agentId}/environments/${a.name}/promote`, { versionId: a.versionId })));
@@ -211,37 +197,12 @@ server.registerTool('list_agent_templates', { description: 'List the built-in ag
 server.registerTool('create_agent_from_template', { description: 'Create a ready-to-call agent from a built-in template and publish its first version. voiceEngine "poc" runs on CallDesk; "retell" also creates the equivalent Retell agent (some node types are approximated; see warnings). transferTo (E.164) fills empty transfer numbers; functionUrl fills empty function webhooks. variables sets the template\'s {{placeholders}}, e.g. {"business_name": "Acme Dental", "agent_name": "Sam"} (business_name defaults to the account name; see list_agent_templates for each template\'s defaultVariables and placeholders).', annotations: WRITE, inputSchema: { templateId: z.string(), name: z.string().optional(), voiceEngine: z.enum(['poc', 'retell']).default('poc'), transferTo: z.string().optional(), functionUrl: z.string().url().optional(), variables: z.record(z.string()).optional(), language: z.enum(['en', 'es', 'fr', 'pt-BR', 'it', 'nl', 'hi', 'de', 'pl', 'id', 'ar']).optional().describe('Agent language (default en); non-English uses the ElevenLabs voice') } }, run(async (a) => api('POST', `/tenants/${await tenant()}/agents/from-template`, a)));
 server.registerTool('get_call', { description: 'Get one call: transcript, outcome, duration, transfer status.', annotations: READ, inputSchema: { callId: z.string() } }, run((a) => api('GET', `/calls/${a.callId}`)));
 
-// ---- voices
-server.registerTool('list_voices', { description: 'List available TTS voices for the workspace, with previewable samples.', annotations: READ, inputSchema: {} }, run(async () => api('GET', `/tenants/${await tenant()}/voices`)));
-server.registerTool('get_voice', { description: 'Get a single voice by id: name, gender, language, accent, sample URL, and available backends.', annotations: READ, inputSchema: { voiceId: z.string() } }, run((a) => api('GET', `/voices/${a.voiceId}`)));
-
-// ---- sms
-server.registerTool('send_sms', { description: 'Send an SMS message from one of your phone numbers.', annotations: COSTS, inputSchema: { phoneNumberId: z.string().describe('Your phone number id to send from'), toNumber: z.string().describe('E.164 recipient, e.g. +14155550123'), body: z.string().min(1).max(1600).describe('Message text') } }, run((a) => api('POST', `/phone-numbers/${a.phoneNumberId}/sms`, { toNumber: a.toNumber, body: a.body })));
-server.registerTool('list_sms', { description: 'List SMS messages sent or received by your workspace.', annotations: READ, inputSchema: { phoneNumberId: z.string().optional(), limit: z.number().int().min(1).max(200).optional() } }, run(async (a) => api('GET', `/tenants/${await tenant()}/sms?limit=${a.limit ?? 25}${a.phoneNumberId ? `&phoneNumberId=${a.phoneNumberId}` : ''}`)));
-server.registerTool('get_sms', { description: 'Get a single SMS message by id.', annotations: READ, inputSchema: { smsId: z.string() } }, run((a) => api('GET', `/sms/${a.smsId}`)));
-
 // ---- contacts
 server.registerTool('list_contacts', { description: 'List saved contacts (address book). Optionally filter with a search term.', annotations: READ, inputSchema: { search: z.string().optional().describe('Filter by name or phone number'), limit: z.number().int().min(1).max(200).optional() } }, run(async (a) => {
   const params = new URLSearchParams();
   if (a.search) params.set('search', a.search);
   params.set('limit', String(a.limit ?? 50));
   return api('GET', `/tenants/${await tenant()}/contacts?${params.toString()}`);
-}));
-server.registerTool('manage_contact', { description: 'Create, update, or delete a saved contact. Set action to choose the operation. create: requires name and phone_number. update: requires contactId; only passed fields are changed. delete: requires contactId (permanent).', annotations: WRITE, inputSchema: { action: z.enum(['create', 'update', 'delete']), contactId: z.string().optional(), name: z.string().optional(), phoneNumber: z.string().optional(), email: z.string().optional(), notes: z.string().optional() } }, run(async (a) => {
-  const { action, contactId, ...fields } = a;
-  if (action === 'create') {
-    if (!fields.name || !fields.phoneNumber) throw new Error('create requires name and phoneNumber');
-    return api('POST', `/tenants/${await tenant()}/contacts`, fields);
-  }
-  if (action === 'update') {
-    if (!contactId) throw new Error('update requires contactId');
-    return api('PATCH', `/contacts/${contactId}`, fields);
-  }
-  if (action === 'delete') {
-    if (!contactId) throw new Error('delete requires contactId');
-    return api('DELETE', `/contacts/${contactId}`);
-  }
-  throw new Error('Invalid action');
 }));
 
 // ---- batch calls
@@ -260,13 +221,6 @@ server.registerTool('delete_webhook', { description: 'Delete a webhook.', annota
 
 // ---- analytics
 server.registerTool('get_analytics', { description: 'Call analytics by day.', annotations: READ, inputSchema: { days: z.enum(['7', '30', '90']).default('30') } }, run(async (a) => api('GET', `/tenants/${await tenant()}/analytics?days=${a.days}`)));
-server.registerTool('get_usage', { description: 'Get usage and billing breakdown: call minutes, SMS segments, number rental costs, and estimated spend for a date range.', annotations: READ, inputSchema: { startDate: z.string().optional().describe('ISO date (YYYY-MM-DD), defaults to start of current month'), endDate: z.string().optional().describe('ISO date (YYYY-MM-DD), defaults to today'), granularity: z.enum(['day', 'month']).optional().default('day').describe('Aggregate by day or month') } }, run(async (a) => {
-  const params = new URLSearchParams();
-  if (a.startDate) params.set('startDate', a.startDate);
-  if (a.endDate) params.set('endDate', a.endDate);
-  params.set('granularity', a.granularity);
-  return api('GET', `/tenants/${await tenant()}/usage?${params.toString()}`);
-}));
 server.registerTool('get_qa_overview', { description: 'QA scores, resolution rate and transfer metrics.', annotations: READ, inputSchema: { days: z.enum(['7', '30', '90']).default('30') } }, run(async (a) => api('GET', `/tenants/${await tenant()}/qa/overview?days=${a.days}`)));
 
 await server.connect(new StdioServerTransport());
