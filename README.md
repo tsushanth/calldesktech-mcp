@@ -33,6 +33,7 @@ Start with **`flow_authoring_guide`** — it documents every node type, its para
 | Subflows | `list_subflows` `create_subflow` `get_subflow` `update_subflow` `delete_subflow` |
 | Knowledge | `list_knowledge_bases` `create_knowledge_base` `get_knowledge_base` `update_knowledge_base` `add_knowledge_items` `delete_knowledge_base` |
 | Numbers & calls | `list_phone_numbers` `search_numbers` `buy_number` `set_number_routing` `list_agent_environments` `promote_agent_environment` `place_call` `list_calls` `get_call` |
+| SMS | `send_sms` `list_sms` `get_sms` |
 | Batch calls | `list_batch_calls` `create_batch_call` `get_batch_call` `run_batch_call` |
 | Webhooks | `list_webhooks` `create_webhook` `get_webhook` `update_webhook` `delete_webhook` |
 | Analytics | `get_analytics` `get_qa_overview` |

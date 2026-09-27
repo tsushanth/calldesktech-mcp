@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.8
+- Add SMS tools: `send_sms`, `list_sms`, `get_sms`
+
 ## 1.0.7
 - Add `search_numbers` and `buy_number` tools for phone number provisioning
 

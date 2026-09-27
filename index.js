@@ -42,7 +42,7 @@ const ok = (data) => ({ content: [{ type: 'text', text: JSON.stringify(data, nul
 const fail = (err) => ({ isError: true, content: [{ type: 'text', text: err instanceof Error ? err.message : String(err) }] });
 const run = (fn) => async (args) => { try { return ok(await fn(args)); } catch (e) { return fail(e); } };
 
-const server = new McpServer({ name: 'calldesktech', version: '1.0.7' });
+const server = new McpServer({ name: 'calldesktech', version: '1.0.8' });
 const READ = { readOnlyHint: true };
 const WRITE = { readOnlyHint: false, destructiveHint: false };
 const DESTROY = { readOnlyHint: false, destructiveHint: true };
@@ -157,6 +157,11 @@ server.registerTool('get_call', { description: 'Get one call: transcript, outcom
 // ---- voices
 server.registerTool('list_voices', { description: 'List available TTS voices for the workspace, with previewable samples.', annotations: READ, inputSchema: {} }, run(async () => api('GET', `/tenants/${await tenant()}/voices`)));
 server.registerTool('get_voice', { description: 'Get a single voice by id: name, gender, language, accent, sample URL, and available backends.', annotations: READ, inputSchema: { voiceId: z.string() } }, run((a) => api('GET', `/voices/${a.voiceId}`)));
+
+// ---- sms
+server.registerTool('send_sms', { description: 'Send an SMS message from one of your phone numbers.', annotations: COSTS, inputSchema: { phoneNumberId: z.string().describe('Your phone number id to send from'), toNumber: z.string().describe('E.164 recipient, e.g. +14155550123'), body: z.string().min(1).max(1600).describe('Message text') } }, run((a) => api('POST', `/phone-numbers/${a.phoneNumberId}/sms`, { toNumber: a.toNumber, body: a.body })));
+server.registerTool('list_sms', { description: 'List SMS messages sent or received by your workspace.', annotations: READ, inputSchema: { phoneNumberId: z.string().optional(), limit: z.number().int().min(1).max(200).optional() } }, run(async (a) => api('GET', `/tenants/${await tenant()}/sms?limit=${a.limit ?? 25}${a.phoneNumberId ? `&phoneNumberId=${a.phoneNumberId}` : ''}`)));
+server.registerTool('get_sms', { description: 'Get a single SMS message by id.', annotations: READ, inputSchema: { smsId: z.string() } }, run((a) => api('GET', `/sms/${a.smsId}`)));
 
 // ---- batch calls
 server.registerTool('list_batch_calls', { description: 'List batch calls.', annotations: READ, inputSchema: {} }, run(async () => api('GET', `/tenants/${await tenant()}/batch-calls`)));
