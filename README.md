@@ -31,9 +31,10 @@ Start with **`flow_authoring_guide`** — it documents every node type, its para
 | Agents | `list_agents` `list_agent_templates` `create_agent_from_template` `create_agent` `get_agent` `rename_agent` `delete_agent` `list_agent_versions` `publish_agent_version` |
 | Voices | `list_voices` `get_voice` |
 | Subflows | `list_subflows` `create_subflow` `get_subflow` `update_subflow` `delete_subflow` |
-| Knowledge | `list_knowledge_bases` `create_knowledge_base` `get_knowledge_base` `update_knowledge_base` `add_knowledge_items` `delete_knowledge_base` |
+| Knowledge | `list_knowledge_bases` `create_knowledge_base` `get_knowledge_base` `update_knowledge_base` `add_knowledge_items` `delete_knowledge_items` `delete_knowledge_base` |
 | Numbers & calls | `list_phone_numbers` `search_numbers` `buy_number` `set_number_routing` `list_agent_environments` `promote_agent_environment` `place_call` `list_calls` `get_call` |
 | SMS | `send_sms` `list_sms` `get_sms` |
+| Contacts | `list_contacts` `manage_contact` |
 | Batch calls | `list_batch_calls` `create_batch_call` `get_batch_call` `run_batch_call` |
 | Webhooks | `list_webhooks` `create_webhook` `get_webhook` `update_webhook` `test_webhook` `delete_webhook` |
 | Analytics | `get_analytics` `get_usage` `get_qa_overview` |

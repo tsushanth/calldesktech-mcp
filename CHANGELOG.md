@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.12
+- Add `delete_knowledge_items` tool
+- Add contacts/CRM tools: `list_contacts`, `manage_contact`
+
 ## 1.0.11
 - Add `account_overview` (aggregated workspace snapshot)
 - Add `get_usage` (billing and usage breakdown with date range / granularity)
