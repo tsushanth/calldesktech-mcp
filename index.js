@@ -42,7 +42,7 @@ const ok = (data) => ({ content: [{ type: 'text', text: JSON.stringify(data, nul
 const fail = (err) => ({ isError: true, content: [{ type: 'text', text: err instanceof Error ? err.message : String(err) }] });
 const run = (fn) => async (args) => { try { return ok(await fn(args)); } catch (e) { return fail(e); } };
 
-const server = new McpServer({ name: 'calldesktech', version: '1.0.15' });
+const server = new McpServer({ name: 'calldesktech', version: '1.0.16' });
 const READ = { readOnlyHint: true };
 const WRITE = { readOnlyHint: false, destructiveHint: false };
 const DESTROY = { readOnlyHint: false, destructiveHint: true };
@@ -185,9 +185,12 @@ server.registerTool('update_knowledge_base', { description: 'Update a knowledge 
 server.registerTool('add_knowledge_items', { description: 'Add Q&A items to a knowledge base.', annotations: WRITE, inputSchema: { knowledgeBaseId: z.string(), items: z.array(z.object({ question: z.string(), answer: z.string() })).min(1) } }, run((a) => api('POST', `/knowledge-bases/${a.knowledgeBaseId}/items`, { items: a.items })));
 server.registerTool('list_knowledge_items', { description: 'List Q&A items in a knowledge base.', annotations: READ, inputSchema: { knowledgeBaseId: z.string() } }, run((a) => api('GET', `/knowledge-bases/${a.knowledgeBaseId}/items`)));
 server.registerTool('delete_knowledge_base', { description: 'Delete a knowledge base and all its items.', annotations: DESTROY, inputSchema: { knowledgeBaseId: z.string() } }, run((a) => api('DELETE', `/knowledge-bases/${a.knowledgeBaseId}`)));
+server.registerTool('delete_knowledge_item', { description: 'Delete a single Q&A item from a knowledge base.', annotations: DESTROY, inputSchema: { knowledgeBaseId: z.string(), itemId: z.string() } }, run((a) => api('DELETE', `/knowledge-bases/${a.knowledgeBaseId}/items/${a.itemId}`)));
 
 // ---- numbers & calls
 server.registerTool('list_phone_numbers', { description: 'List phone numbers and which agent versions they route to.', annotations: READ, inputSchema: {} }, run(async () => api('GET', `/tenants/${await tenant()}/phone-numbers`)));
+server.registerTool('search_numbers', { description: 'Search for purchasable phone numbers by area code and type (local/toll_free). Returns a list with friendlyName, locality, region, and capabilities.', annotations: READ, inputSchema: { areaCode: z.string().optional().describe('US area code, e.g. "415"'), type: z.enum(['local', 'toll_free']).default('local') } }, run(async (a) => api('GET', `/tenants/${await tenant()}/phone-numbers/available?areaCode=${a.areaCode ?? ''}&type=${a.type}`)));
+server.registerTool('buy_number', { description: 'Buy a phone number (assigns to the workspace and optionally routes to an agent version). Pass areaCode to ask Twilio for one, or phoneNumber to buy a specific one from search_results.', annotations: COSTS, inputSchema: { areaCode: z.string().optional(), phoneNumber: z.string().optional(), agentVersionId: z.string().optional(), environmentId: z.string().optional(), inbound: z.string().optional().describe('true to enable inbound routing') } }, run(async (a) => api('POST', `/tenants/${await tenant()}/phone-numbers/purchase`, a)));
 server.registerTool('set_number_routing', { description: 'Route a number\'s inbound or outbound calls to a specific agent version, OR to an environment (see list_agent_environments/promote_agent_environment) — pass exactly one of agentVersionId or environmentId. Environment routing means promoting a new version later takes effect on this number automatically. Pass agentVersionId: null to disable a direction.', annotations: WRITE, inputSchema: { phoneNumberId: z.string(), direction: z.enum(['inbound', 'outbound']), agentVersionId: z.string().nullable().optional(), environmentId: z.string().optional() } }, run((a) => api('POST', `/phone-numbers/${a.phoneNumberId}/routing`, { direction: a.direction, agentVersionId: a.agentVersionId, environmentId: a.environmentId })));
 server.registerTool('list_agent_environments', { description: 'List an agent’s staging/production environments and which version each currently points to (null if nothing promoted yet).', annotations: READ, inputSchema: { agentId: z.string() } }, run((a) => api('GET', `/agents/${a.agentId}/environments`)));
 server.registerTool('promote_agent_environment', { description: 'Promote a version into staging or production. Every number/batch call routed to that environment picks up the new version immediately — no re-routing needed. Rolling back is promoting an older version again.', annotations: WRITE, inputSchema: { agentId: z.string(), name: z.enum(['staging', 'production']), versionId: z.string() } }, run((a) => api('POST', `/agents/${a.agentId}/environments/${a.name}/promote`, { versionId: a.versionId })));
@@ -197,12 +200,45 @@ server.registerTool('list_agent_templates', { description: 'List the built-in ag
 server.registerTool('create_agent_from_template', { description: 'Create a ready-to-call agent from a built-in template and publish its first version. voiceEngine "poc" runs on CallDesk; "retell" also creates the equivalent Retell agent (some node types are approximated; see warnings). transferTo (E.164) fills empty transfer numbers; functionUrl fills empty function webhooks. variables sets the template\'s {{placeholders}}, e.g. {"business_name": "Acme Dental", "agent_name": "Sam"} (business_name defaults to the account name; see list_agent_templates for each template\'s defaultVariables and placeholders).', annotations: WRITE, inputSchema: { templateId: z.string(), name: z.string().optional(), voiceEngine: z.enum(['poc', 'retell']).default('poc'), transferTo: z.string().optional(), functionUrl: z.string().url().optional(), variables: z.record(z.string()).optional(), language: z.enum(['en', 'es', 'fr', 'pt-BR', 'it', 'nl', 'hi', 'de', 'pl', 'id', 'ar']).optional().describe('Agent language (default en); non-English uses the ElevenLabs voice') } }, run(async (a) => api('POST', `/tenants/${await tenant()}/agents/from-template`, a)));
 server.registerTool('get_call', { description: 'Get one call: transcript, outcome, duration, transfer status.', annotations: READ, inputSchema: { callId: z.string() } }, run((a) => api('GET', `/calls/${a.callId}`)));
 
+// ---- voices
+server.registerTool('list_voices', { description: 'List available text-to-speech voices for the workspace.', annotations: READ, inputSchema: { engine: z.enum(['poc', 'retell']).optional().describe('Filter by engine; defaults to the tenant\'s current engine') } }, run(async () => api('GET', `/tenants/${await tenant()}/voices`)));
+server.registerTool('get_voice', { description: 'Get details of a single voice.', annotations: READ, inputSchema: { voiceId: z.string() } }, run(async (a) => api('GET', `/tenants/${await tenant()}/voices/${a.voiceId}`)));
+
+// ---- SMS
+server.registerTool('send_sms', { description: 'Send an SMS from one of your numbers.', annotations: COSTS, inputSchema: { phoneNumberId: z.string(), toNumber: z.string().describe('E.164, e.g. +14155550123'), body: z.string().min(1).max(1600) } }, run(async (a) => api('POST', `/tenants/${await tenant()}/sms`, a)));
+server.registerTool('list_sms', { description: 'List SMS messages (inbound and outbound) for the workspace.', annotations: READ, inputSchema: { phoneNumberId: z.string().optional(), limit: z.number().int().min(1).max(200).optional() } }, run(async (a) => api('GET', `/tenants/${await tenant()}/sms?limit=${a.limit ?? 25}${a.phoneNumberId ? `&phoneNumberId=${a.phoneNumberId}` : ''}`)));
+server.registerTool('get_sms', { description: 'Get a single SMS message.', annotations: READ, inputSchema: { smsId: z.string() } }, run((a) => api('GET', `/sms/${a.smsId}`)));
+
+// ---- usage
+server.registerTool('get_usage', { description: 'Billing and usage breakdown: call minutes, SMS count, number rental cost, daily series. Defaults to the current month.', annotations: READ, inputSchema: { startDate: z.string().optional().describe('YYYY-MM-DD'), endDate: z.string().optional().describe('YYYY-MM-DD'), granularity: z.enum(['day', 'month']).optional() } }, run(async (a) => {
+  const params = new URLSearchParams();
+  if (a.startDate) params.set('startDate', a.startDate);
+  if (a.endDate) params.set('endDate', a.endDate);
+  if (a.granularity) params.set('granularity', a.granularity);
+  return api('GET', `/tenants/${await tenant()}/usage?${params.toString()}`);
+}));
+
 // ---- contacts
 server.registerTool('list_contacts', { description: 'List saved contacts (address book). Optionally filter with a search term.', annotations: READ, inputSchema: { search: z.string().optional().describe('Filter by name or phone number'), limit: z.number().int().min(1).max(200).optional() } }, run(async (a) => {
   const params = new URLSearchParams();
   if (a.search) params.set('search', a.search);
   params.set('limit', String(a.limit ?? 50));
   return api('GET', `/tenants/${await tenant()}/contacts?${params.toString()}`);
+}));
+server.registerTool('manage_contact', { description: 'Create, update, or delete a contact in the address book.', annotations: WRITE, inputSchema: { action: z.enum(['create', 'update', 'delete']), phoneNumber: z.string().describe('The contact\'s phone number (E.164)'), name: z.string().optional(), email: z.string().optional(), notes: z.string().optional(), doNotCall: z.boolean().optional() } }, run(async (a) => {
+  const tid = await tenant();
+  if (a.action === 'create') {
+    if (!a.phoneNumber) throw new Error('phoneNumber is required for create');
+    return api('POST', `/tenants/${tid}/contacts`, { phoneNumber: a.phoneNumber, name: a.name, email: a.email, notes: a.notes, doNotCall: a.doNotCall });
+  }
+  if (a.action === 'update') {
+    if (!a.phoneNumber) throw new Error('phoneNumber is required for update');
+    return api('PATCH', `/tenants/${tid}/contacts`, { caller_phone: a.phoneNumber, name: a.name, email: a.email, notes: a.notes, do_not_call: a.doNotCall });
+  }
+  if (a.action === 'delete') {
+    if (!a.phoneNumber) throw new Error('phoneNumber is required for delete');
+    return api('DELETE', `/tenants/${tid}/contacts?caller_phone=${encodeURIComponent(a.phoneNumber)}`);
+  }
 }));
 
 // ---- batch calls

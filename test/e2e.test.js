@@ -72,11 +72,14 @@ describe('calldesktech-mcp E2E', { concurrency: false }, () => {
       'list_agent_templates', 'create_agent_from_template',
       'list_subflows', 'create_subflow', 'get_subflow', 'update_subflow', 'delete_subflow',
       'list_knowledge_bases', 'create_knowledge_base', 'get_knowledge_base',
-      'update_knowledge_base', 'add_knowledge_items', 'list_knowledge_items', 'delete_knowledge_base',
-      'list_phone_numbers', 'set_number_routing',
+      'update_knowledge_base', 'add_knowledge_items', 'list_knowledge_items', 'delete_knowledge_base', 'delete_knowledge_item',
+      'list_phone_numbers', 'set_number_routing', 'search_numbers', 'buy_number',
       'list_agent_environments', 'promote_agent_environment',
       'place_call', 'list_calls', 'get_call',
-      'list_contacts',
+      'list_contacts', 'manage_contact',
+      'list_voices', 'get_voice',
+      'send_sms', 'list_sms', 'get_sms',
+      'get_usage',
       'list_batch_calls', 'create_batch_call', 'get_batch_call', 'run_batch_call',
       'list_webhooks', 'create_webhook', 'get_webhook', 'update_webhook', 'test_webhook', 'delete_webhook',
       'get_analytics', 'get_qa_overview',
@@ -195,6 +198,11 @@ describe('calldesktech-mcp E2E', { concurrency: false }, () => {
     assert.ok(!res.result?.isError);
   });
 
+  it('delete_knowledge_item removes one item', async () => {
+    const res = await callTool(proc, 'delete_knowledge_item', { knowledgeBaseId: 'kb_1', itemId: 'ki_1' });
+    assert.ok(!res.result?.isError);
+  });
+
   // ---- phone numbers & calls
   it('list_phone_numbers returns numbers', async () => {
     const res = await callTool(proc, 'list_phone_numbers', {});
@@ -241,6 +249,74 @@ describe('calldesktech-mcp E2E', { concurrency: false }, () => {
     const res = await callTool(proc, 'list_contacts', {});
     const data = JSON.parse(res.result?.content?.[0]?.text || '[]');
     assert.ok(Array.isArray(data));
+  });
+
+  it('manage_contact creates a contact', async () => {
+    const res = await callTool(proc, 'manage_contact', { action: 'create', phoneNumber: '+14155550123', name: 'Alice', email: 'alice@example.com', notes: 'Lead from trade show' });
+    const data = JSON.parse(res.result?.content?.[0]?.text || '{}');
+    assert.strictEqual(data.id, 'ct_new');
+  });
+
+  it('manage_contact updates a contact', async () => {
+    const res = await callTool(proc, 'manage_contact', { action: 'update', phoneNumber: '+14155550123', notes: 'Converted to customer', doNotCall: true });
+    assert.ok(!res.result?.isError);
+  });
+
+  it('manage_contact deletes a contact', async () => {
+    const res = await callTool(proc, 'manage_contact', { action: 'delete', phoneNumber: '+14155550123' });
+    assert.ok(!res.result?.isError);
+  });
+
+  // ---- voices
+  it('list_voices returns voices', async () => {
+    const res = await callTool(proc, 'list_voices', {});
+    const data = JSON.parse(res.result?.content?.[0]?.text || '{}');
+    assert.ok(Array.isArray(data.voices));
+  });
+
+  it('get_voice returns a single voice', async () => {
+    const res = await callTool(proc, 'get_voice', { voiceId: 'v_1' });
+    const data = JSON.parse(res.result?.content?.[0]?.text || '{}');
+    assert.strictEqual(data.voice?.id, 'v_1');
+  });
+
+  // ---- numbers — search + buy
+  it('search_numbers lists available numbers', async () => {
+    const res = await callTool(proc, 'search_numbers', { areaCode: '415', type: 'local' });
+    const data = JSON.parse(res.result?.content?.[0]?.text || '{}');
+    assert.ok(Array.isArray(data.numbers));
+  });
+
+  it('buy_number purchases a number', async () => {
+    const res = await callTool(proc, 'buy_number', { areaCode: '415', agentVersionId: 'v_1' });
+    const data = JSON.parse(res.result?.content?.[0]?.text || '{}');
+    assert.strictEqual(data.id, 'pn_new');
+  });
+
+  // ---- SMS
+  it('send_sms sends a message', async () => {
+    const res = await callTool(proc, 'send_sms', { phoneNumberId: 'pn_1', toNumber: '+14155550999', body: 'Hello from MCP' });
+    const data = JSON.parse(res.result?.content?.[0]?.text || '{}');
+    assert.strictEqual(data.sms?.id, 'sms_new');
+  });
+
+  it('list_sms returns messages', async () => {
+    const res = await callTool(proc, 'list_sms', { phoneNumberId: 'pn_1' });
+    const data = JSON.parse(res.result?.content?.[0]?.text || '{}');
+    assert.ok(Array.isArray(data.smsMessages));
+  });
+
+  it('get_sms returns a single SMS', async () => {
+    const res = await callTool(proc, 'get_sms', { smsId: 'sms_1' });
+    const data = JSON.parse(res.result?.content?.[0]?.text || '{}');
+    assert.strictEqual(data.sms?.id, 'sms_1');
+  });
+
+  // ---- usage
+  it('get_usage returns billing breakdown', async () => {
+    const res = await callTool(proc, 'get_usage', { startDate: '2025-01-01', endDate: '2025-01-31' });
+    const data = JSON.parse(res.result?.content?.[0]?.text || '{}');
+    assert.ok(typeof data.totals?.callMinutes === 'number');
   });
 
   // ---- batch calls
@@ -330,12 +406,20 @@ describe('calldesktech-mcp E2E', { concurrency: false }, () => {
       '/api/v1/tenants/test-tenant-123/knowledge-bases',
       '/api/v1/knowledge-bases/kb_1',
       '/api/v1/knowledge-bases/kb_1/items',
+      '/api/v1/knowledge-bases/kb_1/items/ki_1',
       '/api/v1/tenants/test-tenant-123/phone-numbers',
+      '/api/v1/tenants/test-tenant-123/phone-numbers/available',
+      '/api/v1/tenants/test-tenant-123/phone-numbers/purchase',
       '/api/v1/phone-numbers/pn_1/routing',
       '/api/v1/phone-numbers/pn_1/call',
       '/api/v1/tenants/test-tenant-123/calls',
       '/api/v1/calls/call_1',
       '/api/v1/tenants/test-tenant-123/contacts',
+      '/api/v1/tenants/test-tenant-123/voices',
+      '/api/v1/tenants/test-tenant-123/voices/v_1',
+      '/api/v1/tenants/test-tenant-123/sms',
+      '/api/v1/sms/sms_1',
+      '/api/v1/tenants/test-tenant-123/usage',
       '/api/v1/tenants/test-tenant-123/batch-calls',
       '/api/v1/batch-calls/bc_1',
       '/api/v1/batch-calls/bc_1/run',

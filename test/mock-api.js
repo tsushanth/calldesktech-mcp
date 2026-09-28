@@ -50,6 +50,8 @@ export function startMockApi(port = 9876) {
       if (method === 'PATCH' && url === '/api/v1/knowledge-bases/kb_1') { res.writeHead(200); res.end(JSON.stringify({ id: 'kb_1', ...parsedBody })); return; }
       if (route === 'GET /api/v1/knowledge-bases/kb_1/items') { res.writeHead(200); res.end(JSON.stringify({ items: [{ id: 'ki_1', question: 'Q', answer: 'A' }] })); return; }
       if (method === 'POST' && url === '/api/v1/knowledge-bases/kb_1/items') { res.writeHead(201); res.end(JSON.stringify({ added: parsedBody.items.length })); return; }
+      if (method === 'DELETE' && url === '/api/v1/knowledge-bases/kb_1/items/ki_1') { res.writeHead(200); res.end(JSON.stringify({ success: true })); return; }
+      if (route === 'GET /api/v1/knowledge-bases/kb_1/items/ki_1') { res.writeHead(200); res.end(JSON.stringify({ item: { id: 'ki_1', question: 'Q', answer: 'A' } })); return; }
       if (method === 'DELETE' && url === '/api/v1/knowledge-bases/kb_1') { res.writeHead(204); res.end(); return; }
 
       // subflows
@@ -66,10 +68,34 @@ export function startMockApi(port = 9876) {
       if (route === `GET ${tp}/calls`) { res.writeHead(200); res.end(JSON.stringify([{ id: 'call_1', toNumber: '+14155550999', duration: 60 }])); return; }
       if (route === 'GET /api/v1/calls/call_1') { res.writeHead(200); res.end(JSON.stringify({ id: 'call_1', transcript: 'Hello world', outcome: 'completed' })); return; }
 
-      // contacts (read-only)
-      if (route === `GET ${tp}/contacts`) { res.writeHead(200); res.end(JSON.stringify([{ id: 'ct_1', name: 'John Doe', phoneNumber: '+14155550123' }])); return; }
+      // contacts
+      if (route === `GET ${tp}/contacts`) { res.writeHead(200); res.end(JSON.stringify([{ id: 'ct_1', name: 'John Doe', phoneNumber: '+14155550123', email: 'john@example.com', notes: 'VIP customer' }])); return; }
+      if (method === 'POST' && url === `${tp}/contacts`) { res.writeHead(201); res.end(JSON.stringify({ id: 'ct_new', ...parsedBody })); return; }
+      if (method === 'PATCH' && url === `${tp}/contacts`) { res.writeHead(200); res.end(JSON.stringify({ id: 'ct_1', ...parsedBody })); return; }
+      if (method === 'DELETE' && url.split('?')[0] === `${tp}/contacts`) { res.writeHead(200); res.end(JSON.stringify({ success: true })); return; }
 
-      // webhooks
+      // voices
+      if (route === `GET ${tp}/voices`) { res.writeHead(200); res.end(JSON.stringify({ voices: [{ id: 'v_1', name: 'Brian', engine: 'retell' }, { id: 'v_2', name: 'Aurora', engine: 'poc' }] })); return; }
+      if (route.match(/^GET \/api\/v1\/tenants\/test-tenant-123\/voices\//)) { res.writeHead(200); res.end(JSON.stringify({ voice: { id: 'v_1', name: 'Brian', engine: 'retell' } })); return; }
+
+      // numbers — purchase + available
+      if (method === 'POST' && url === `${tp}/phone-numbers/purchase`) { res.writeHead(201); res.end(JSON.stringify({ id: 'pn_new', phoneNumber: '+14155550999', ...parsedBody })); return; }
+      if (route === `GET ${tp}/phone-numbers/available`) {
+        const { searchParams } = new URL(url, `http://localhost:${port}`);
+        const areaCode = searchParams.get('areaCode') || '415';
+        const type = searchParams.get('type') || 'local';
+        res.writeHead(200);
+        res.end(JSON.stringify({ numbers: [{ phoneNumber: `+1${areaCode}5550100`, friendlyName: `(415) 555-0100`, locality: 'San Francisco', region: 'CA', type, capabilities: { voice: true, SMS: true, MMS: true } }] }));
+        return;
+      }
+
+      // SMS
+      if (method === 'POST' && url === `${tp}/sms`) { res.writeHead(201); res.end(JSON.stringify({ sms: { id: 'sms_new', ...parsedBody, direction: 'outbound', status: 'queued' } })); return; }
+      if (route === `GET ${tp}/sms`) { res.writeHead(200); res.end(JSON.stringify({ smsMessages: [{ id: 'sms_1', fromNumber: '+14155550123', toNumber: '+14155550999', body: 'Hello', direction: 'outbound' }] })); return; }
+      if (route.match(/^GET \/api\/v1\/sms\/sms_1/)) { res.writeHead(200); res.end(JSON.stringify({ sms: { id: 'sms_1', fromNumber: '+14155550123', toNumber: '+14155550999', body: 'Hello', direction: 'outbound' } })); return; }
+
+      // usage
+      if (route === `GET ${tp}/usage`) { res.writeHead(200); res.end(JSON.stringify({ totals: { callMinutes: 123, smsMessages: 45, smsSegments: 45, numberCost: 4.0 }, series: [{ date: '2025-01-01', callMinutes: 20, smsCount: 5 }] })); return; }
       if (route === `GET ${tp}/webhooks`) { res.writeHead(200); res.end(JSON.stringify([{ id: 'wh_1', url: 'https://example.com/webhook', events: ['call.completed'] }])); return; }
       if (method === 'POST' && url === `${tp}/webhooks`) { res.writeHead(201); res.end(JSON.stringify({ id: 'wh_new', secret: 'sec_123', ...parsedBody })); return; }
       if (route === `GET ${tp}/webhooks/wh_1`) { res.writeHead(200); res.end(JSON.stringify({ id: 'wh_1', url: 'https://example.com/webhook' })); return; }
