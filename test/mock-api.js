@@ -80,6 +80,7 @@ export function startMockApi(port = 9876) {
       // voices
       if (route === `GET ${tp}/voices`) { res.writeHead(200); res.end(JSON.stringify({ voices: [{ id: 'v_1', name: 'Brian', engine: 'retell' }, { id: 'v_2', name: 'Aurora', engine: 'poc' }] })); return; }
       if (route.match(/^GET \/api\/v1\/tenants\/test-tenant-123\/voices\//)) { res.writeHead(200); res.end(JSON.stringify({ voice: { id: 'v_1', name: 'Brian', engine: 'retell' } })); return; }
+      if (method === 'POST' && url === `${tp}/voices/clone`) { res.writeHead(201); res.end(JSON.stringify({ voice: { id: 'cloned-abc123', name: parsedBody.name, tts_backend: 'elevenlabs', is_active: true, sample_url: parsedBody.sampleUrl }, elevenlabs: { voice_id: 'cloned-abc123' } })); return; }
       if (method === 'POST' && url === `${tp}/voices`) { res.writeHead(201); res.end(JSON.stringify({ voice: { id: parsedBody.id, ...parsedBody } })); return; }
       if (method === 'PATCH' && url.match(/^\/api\/v1\/tenants\/test-tenant-123\/voices\//)) { res.writeHead(200); res.end(JSON.stringify({ voice: { id: 'v_1', ...parsedBody } })); return; }
       if (method === 'DELETE' && url.match(/^\/api\/v1\/tenants\/test-tenant-123\/voices\//)) { res.writeHead(200); res.end(JSON.stringify({ voice: { id: 'v_1', is_active: false } })); return; }

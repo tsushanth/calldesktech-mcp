@@ -77,7 +77,7 @@ describe('calldesktech-mcp E2E', { concurrency: false }, () => {
       'list_agent_environments', 'promote_agent_environment',
       'place_call', 'list_calls', 'get_call', 'get_call_recording', 'search_calls',
       'list_contacts', 'manage_contact',
-      'list_voices', 'get_voice', 'create_voice', 'update_voice', 'delete_voice',
+      'list_voices', 'get_voice', 'create_voice', 'update_voice', 'delete_voice', 'clone_voice',
       'send_sms', 'list_sms', 'get_sms', 'list_sms_conversations', 'get_sms_conversation',
       'get_usage', 'get_business_hours', 'set_business_hours',
       'list_batch_calls', 'create_batch_call', 'get_batch_call', 'run_batch_call',
@@ -299,6 +299,13 @@ describe('calldesktech-mcp E2E', { concurrency: false }, () => {
     assert.strictEqual(data.voice?.id, 'custom-test');
   });
 
+  it('clone_voice creates a cloned voice from sample', async () => {
+    const res = await callTool(proc, 'clone_voice', { name: 'Cloned Test Voice', sampleUrl: 'https://example.com/sample.mp3' });
+    const data = JSON.parse(res.result?.content?.[0]?.text || '{}');
+    // Mock returns the ElevenLabs voice_id
+    assert.ok(data.voice?.id || data.elevenlabs?.voice_id, 'expected voice id');
+  });
+
   it('update_voice renames a voice', async () => {
     const res = await callTool(proc, 'update_voice', { voiceId: 'v_1', name: 'Updated Brian' });
     const data = JSON.parse(res.result?.content?.[0]?.text || '{}');
@@ -482,6 +489,7 @@ describe('calldesktech-mcp E2E', { concurrency: false }, () => {
       '/api/v1/tenants/test-tenant-123/contacts',
       '/api/v1/tenants/test-tenant-123/voices',
       '/api/v1/tenants/test-tenant-123/voices/v_1',
+      '/api/v1/tenants/test-tenant-123/voices/clone',
       '/api/v1/tenants/test-tenant-123/sms',
       '/api/v1/tenants/test-tenant-123/sms/conversations',
       '/api/v1/tenants/test-tenant-123/sms/conversations/%2B14155550999',
