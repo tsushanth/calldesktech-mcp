@@ -65,8 +65,11 @@ export function startMockApi(port = 9876) {
       if (route === `GET ${tp}/phone-numbers`) { res.writeHead(200); res.end(JSON.stringify([{ id: 'pn_1', phoneNumber: '+14155550123', agentId: 'ag_1' }])); return; }
       if (method === 'POST' && url === '/api/v1/phone-numbers/pn_1/routing') { res.writeHead(200); res.end(JSON.stringify({ success: true, ...parsedBody })); return; }
       if (method === 'POST' && url === '/api/v1/phone-numbers/pn_1/call') { res.writeHead(201); res.end(JSON.stringify({ callId: 'call_1', status: 'queued', ...parsedBody })); return; }
+      // Search calls must check raw url (route strips query)
+      if (method === 'GET' && url.startsWith(`${tp}/calls?search=`)) { res.writeHead(200); res.end(JSON.stringify({ callLogs: [{ id: 'call_1', transcript: 'Hello world', outcome: 'completed' }] })); return; }
       if (route === `GET ${tp}/calls`) { res.writeHead(200); res.end(JSON.stringify([{ id: 'call_1', toNumber: '+14155550999', duration: 60 }])); return; }
       if (route === 'GET /api/v1/calls/call_1') { res.writeHead(200); res.end(JSON.stringify({ id: 'call_1', transcript: 'Hello world', outcome: 'completed' })); return; }
+      if (route === 'GET /api/v1/calls/call_1/recording') { res.writeHead(200); res.end(JSON.stringify({ audioUrl: 'https://example.com/recording.mp3' })); return; }
 
       // contacts
       if (route === `GET ${tp}/contacts`) { res.writeHead(200); res.end(JSON.stringify([{ id: 'ct_1', name: 'John Doe', phoneNumber: '+14155550123', email: 'john@example.com', notes: 'VIP customer' }])); return; }
@@ -102,6 +105,8 @@ export function startMockApi(port = 9876) {
 
       // usage
       if (route === `GET ${tp}/usage`) { res.writeHead(200); res.end(JSON.stringify({ totals: { callMinutes: 123, smsOutbound: 30, smsInbound: 15, bookings: 5, transfers: 2, smsSegments: 45, numberCost: 4.0 }, series: [{ date: '2025-01-01', callMinutes: 20, smsOutbound: 3, smsInbound: 1 }], stripeActuals: { totalPaid: 5200, currency: 'usd', invoicesFound: 1 } })); return; }
+      if (route === `GET ${tp}/business-hours`) { res.writeHead(200); res.end(JSON.stringify({ timezone: 'America/New_York', hours: { monday: { open: '09:00', closed: '17:00' } }, after_hours_message: 'We are currently closed.' })); return; }
+      if (method === 'POST' && url === `${tp}/business-hours`) { res.writeHead(201); res.end(JSON.stringify({ ...parsedBody, tenant_id: 'test-tenant-123' })); return; }
       if (route === `GET ${tp}/webhooks`) { res.writeHead(200); res.end(JSON.stringify([{ id: 'wh_1', url: 'https://example.com/webhook', events: ['call.completed'] }])); return; }
       if (method === 'POST' && url === `${tp}/webhooks`) { res.writeHead(201); res.end(JSON.stringify({ id: 'wh_new', secret: 'sec_123', ...parsedBody })); return; }
       if (route === `GET ${tp}/webhooks/wh_1`) { res.writeHead(200); res.end(JSON.stringify({ id: 'wh_1', url: 'https://example.com/webhook' })); return; }

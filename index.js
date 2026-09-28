@@ -42,7 +42,7 @@ const ok = (data) => ({ content: [{ type: 'text', text: JSON.stringify(data, nul
 const fail = (err) => ({ isError: true, content: [{ type: 'text', text: err instanceof Error ? err.message : String(err) }] });
 const run = (fn) => async (args) => { try { return ok(await fn(args)); } catch (e) { return fail(e); } };
 
-const server = new McpServer({ name: 'calldesktech', version: '1.0.19' });
+const server = new McpServer({ name: 'calldesktech', version: '1.0.20' });
 const READ = { readOnlyHint: true };
 const WRITE = { readOnlyHint: false, destructiveHint: false };
 const DESTROY = { readOnlyHint: false, destructiveHint: true };
@@ -200,6 +200,8 @@ server.registerTool('list_calls', { description: 'List recent calls.', annotatio
 server.registerTool('list_agent_templates', { description: 'List the built-in agent templates (receptionist, medical receptionist, payment collection, IVR navigation, etc.) that can be installed with create_agent_from_template.', annotations: READ, inputSchema: {} }, run(() => api('GET', '/agent-templates')));
 server.registerTool('create_agent_from_template', { description: 'Create a ready-to-call agent from a built-in template and publish its first version. voiceEngine "poc" runs on CallDesk; "retell" also creates the equivalent Retell agent (some node types are approximated; see warnings). transferTo (E.164) fills empty transfer numbers; functionUrl fills empty function webhooks. variables sets the template\'s {{placeholders}}, e.g. {"business_name": "Acme Dental", "agent_name": "Sam"} (business_name defaults to the account name; see list_agent_templates for each template\'s defaultVariables and placeholders).', annotations: WRITE, inputSchema: { templateId: z.string(), name: z.string().optional(), voiceEngine: z.enum(['poc', 'retell']).default('poc'), transferTo: z.string().optional(), functionUrl: z.string().url().optional(), variables: z.record(z.string()).optional(), language: z.string().optional().describe('Agent language code (default en); non-English poc agents use the ElevenLabs voice') } }, run(async (a) => api('POST', `/tenants/${await tenant()}/agents/from-template`, a)));
 server.registerTool('get_call', { description: 'Get one call: transcript, outcome, duration, transfer status.', annotations: READ, inputSchema: { callId: z.string() } }, run((a) => api('GET', `/calls/${a.callId}`)));
+server.registerTool('get_call_recording', { description: 'Download a call\'s audio recording. Returns a streaming audio response (MP3).', annotations: READ, inputSchema: { callId: z.string() } }, run((a) => api('GET', `/calls/${a.callId}/recording`)));
+server.registerTool('search_calls', { description: 'Search call transcripts for keywords. Returns matching call logs with their transcripts.', annotations: READ, inputSchema: { search: z.string().describe('Keyword or phrase to search for in transcripts'), limit: z.number().int().min(1).max(200).optional() } }, run(async (a) => api('GET', `/tenants/${await tenant()}/calls?search=${encodeURIComponent(a.search)}&limit=${a.limit ?? 50}`)));
 
 // ---- voices
 server.registerTool('list_voices', { description: 'List available text-to-speech voices for the workspace.', annotations: READ, inputSchema: { engine: z.enum(['poc', 'retell']).optional().describe('Filter by engine; defaults to the tenant\'s current engine') } }, run(async () => api('GET', `/tenants/${await tenant()}/voices`)));
@@ -221,6 +223,8 @@ server.registerTool('get_usage', { description: 'Billing and usage breakdown: ca
   if (a.granularity) params.set('granularity', a.granularity);
   return api('GET', `/tenants/${await tenant()}/usage?${params.toString()}`);
 }));
+server.registerTool('get_business_hours', { description: 'Get the workspace\'s office hours, timezone, and after-hours routing configuration.', annotations: READ, inputSchema: {} }, run(async () => api('GET', `/tenants/${await tenant()}/business-hours`)));
+server.registerTool('set_business_hours', { description: 'Set office hours and after-hours behavior. hours is a JSON object like { "monday": { "open": "09:00", "closed": "17:00" }, "tuesday": ... } — omit a day to keep it closed.', annotations: WRITE, inputSchema: { timezone: z.string().optional().describe('IANA timezone e.g. America/New_York'), hours: z.record(z.object({ open: z.string(), closed: z.string() })).optional(), afterHoursMessage: z.string().optional().describe('Message played to callers after hours'), afterHoursNumber: z.string().optional().describe('E.164 number to transfer to after hours'), afterHoursAgentVersionId: z.string().optional().describe('Agent version for after-hours calls') } }, run(async (a) => api('POST', `/tenants/${await tenant()}/business-hours`, a)));
 
 // ---- contacts
 server.registerTool('list_contacts', { description: 'List saved contacts (address book). Optionally filter with a search term.', annotations: READ, inputSchema: { search: z.string().optional().describe('Filter by name or phone number'), limit: z.number().int().min(1).max(200).optional() } }, run(async (a) => {

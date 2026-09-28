@@ -75,11 +75,11 @@ describe('calldesktech-mcp E2E', { concurrency: false }, () => {
       'update_knowledge_base', 'add_knowledge_items', 'list_knowledge_items', 'delete_knowledge_base', 'delete_knowledge_item',
       'list_phone_numbers', 'set_number_routing', 'search_numbers', 'buy_number', 'port_number',
       'list_agent_environments', 'promote_agent_environment',
-      'place_call', 'list_calls', 'get_call',
+      'place_call', 'list_calls', 'get_call', 'get_call_recording', 'search_calls',
       'list_contacts', 'manage_contact',
       'list_voices', 'get_voice', 'create_voice', 'update_voice', 'delete_voice',
       'send_sms', 'list_sms', 'get_sms', 'list_sms_conversations', 'get_sms_conversation',
-      'get_usage',
+      'get_usage', 'get_business_hours', 'set_business_hours',
       'list_batch_calls', 'create_batch_call', 'get_batch_call', 'run_batch_call',
       'list_webhooks', 'create_webhook', 'get_webhook', 'update_webhook', 'test_webhook', 'delete_webhook',
       'get_analytics', 'get_qa_overview',
@@ -357,6 +357,32 @@ describe('calldesktech-mcp E2E', { concurrency: false }, () => {
     assert.ok(typeof data.totals?.callMinutes === 'number');
   });
 
+  it('get_business_hours returns hours', async () => {
+    const res = await callTool(proc, 'get_business_hours', {});
+    const data = JSON.parse(res.result?.content?.[0]?.text || '{}');
+    assert.ok(data.timezone);
+  });
+
+  it('set_business_hours updates hours', async () => {
+    const res = await callTool(proc, 'set_business_hours', {
+      timezone: 'America/Los_Angeles',
+      hours: { monday: { open: '08:00', closed: '18:00' } },
+      afterHoursMessage: 'We are closed. Please call back tomorrow.',
+    });
+    assert.ok(!res.result?.isError);
+  });
+
+  it('get_call_recording returns recording info', async () => {
+    const res = await callTool(proc, 'get_call_recording', { callId: 'call_1' });
+    assert.ok(!res.result?.isError);
+  });
+
+  it('search_calls finds calls by transcript', async () => {
+    const res = await callTool(proc, 'search_calls', { search: 'Hello world', limit: 10 });
+    const data = JSON.parse(res.result?.content?.[0]?.text || '{}');
+    assert.ok(Array.isArray(data.callLogs));
+  });
+
   // ---- batch calls
   it('list_batch_calls returns batches', async () => {
     const res = await callTool(proc, 'list_batch_calls', {});
@@ -452,6 +478,7 @@ describe('calldesktech-mcp E2E', { concurrency: false }, () => {
       '/api/v1/phone-numbers/pn_1/call',
       '/api/v1/tenants/test-tenant-123/calls',
       '/api/v1/calls/call_1',
+      '/api/v1/calls/call_1/recording',
       '/api/v1/tenants/test-tenant-123/contacts',
       '/api/v1/tenants/test-tenant-123/voices',
       '/api/v1/tenants/test-tenant-123/voices/v_1',
@@ -460,6 +487,7 @@ describe('calldesktech-mcp E2E', { concurrency: false }, () => {
       '/api/v1/tenants/test-tenant-123/sms/conversations/%2B14155550999',
       '/api/v1/sms/sms_1',
       '/api/v1/tenants/test-tenant-123/usage',
+      '/api/v1/tenants/test-tenant-123/business-hours',
       '/api/v1/tenants/test-tenant-123/batch-calls',
       '/api/v1/batch-calls/bc_1',
       '/api/v1/batch-calls/bc_1/run',
