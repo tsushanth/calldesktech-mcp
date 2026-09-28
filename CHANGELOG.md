@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.17
+- Remove hardcoded 12-language enum in `create_agent_from_template`; `language` now accepts any string so the backend (50+ languages) is the source of truth
+- Update flow-authoring guide language description to match
+
 ## 1.0.14
 - **Remove fake tools:** `list_voices`, `get_voice`, `search_numbers`, `buy_number`, `send_sms`, `list_sms`, `get_sms`, `get_usage`, `delete_knowledge_items`, `manage_contact` — these endpoints do not exist in the live API
 - **Add real tool:** `list_knowledge_items` (`GET /knowledge-bases/{id}/items`) — was documented but missing from MCP
