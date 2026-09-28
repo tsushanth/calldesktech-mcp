@@ -77,9 +77,13 @@ export function startMockApi(port = 9876) {
       // voices
       if (route === `GET ${tp}/voices`) { res.writeHead(200); res.end(JSON.stringify({ voices: [{ id: 'v_1', name: 'Brian', engine: 'retell' }, { id: 'v_2', name: 'Aurora', engine: 'poc' }] })); return; }
       if (route.match(/^GET \/api\/v1\/tenants\/test-tenant-123\/voices\//)) { res.writeHead(200); res.end(JSON.stringify({ voice: { id: 'v_1', name: 'Brian', engine: 'retell' } })); return; }
+      if (method === 'POST' && url === `${tp}/voices`) { res.writeHead(201); res.end(JSON.stringify({ voice: { id: parsedBody.id, ...parsedBody } })); return; }
+      if (method === 'PATCH' && url.match(/^\/api\/v1\/tenants\/test-tenant-123\/voices\//)) { res.writeHead(200); res.end(JSON.stringify({ voice: { id: 'v_1', ...parsedBody } })); return; }
+      if (method === 'DELETE' && url.match(/^\/api\/v1\/tenants\/test-tenant-123\/voices\//)) { res.writeHead(200); res.end(JSON.stringify({ voice: { id: 'v_1', is_active: false } })); return; }
 
-      // numbers — purchase + available
+      // numbers — purchase + available + porting
       if (method === 'POST' && url === `${tp}/phone-numbers/purchase`) { res.writeHead(201); res.end(JSON.stringify({ id: 'pn_new', phoneNumber: '+14155550999', ...parsedBody })); return; }
+      if (method === 'POST' && url === `${tp}/phone-numbers`) { res.writeHead(201); res.end(JSON.stringify({ phoneNumber: { id: 'pn_ported', number: parsedBody.number, source: 'ported', ...parsedBody } })); return; }
       if (route === `GET ${tp}/phone-numbers/available`) {
         const { searchParams } = new URL(url, `http://localhost:${port}`);
         const areaCode = searchParams.get('areaCode') || '415';
@@ -93,9 +97,11 @@ export function startMockApi(port = 9876) {
       if (method === 'POST' && url === `${tp}/sms`) { res.writeHead(201); res.end(JSON.stringify({ sms: { id: 'sms_new', ...parsedBody, direction: 'outbound', status: 'queued' } })); return; }
       if (route === `GET ${tp}/sms`) { res.writeHead(200); res.end(JSON.stringify({ smsMessages: [{ id: 'sms_1', fromNumber: '+14155550123', toNumber: '+14155550999', body: 'Hello', direction: 'outbound' }] })); return; }
       if (route.match(/^GET \/api\/v1\/sms\/sms_1/)) { res.writeHead(200); res.end(JSON.stringify({ sms: { id: 'sms_1', fromNumber: '+14155550123', toNumber: '+14155550999', body: 'Hello', direction: 'outbound' } })); return; }
+      if (route === `GET ${tp}/sms/conversations`) { res.writeHead(200); res.end(JSON.stringify({ conversations: [{ phoneNumber: '+14155550999', preview: 'Hello', lastMessageAt: new Date().toISOString(), unreadCount: 0 }] })); return; }
+      if (route.match(/^GET \/api\/v1\/tenants\/test-tenant-123\/sms\/conversations\//)) { res.writeHead(200); res.end(JSON.stringify({ messages: [{ id: 'sms_1', fromNumber: '+14155550123', toNumber: '+14155550999', body: 'Hello', direction: 'outbound' }], phoneNumber: '+14155550999' })); return; }
 
       // usage
-      if (route === `GET ${tp}/usage`) { res.writeHead(200); res.end(JSON.stringify({ totals: { callMinutes: 123, smsMessages: 45, smsSegments: 45, numberCost: 4.0 }, series: [{ date: '2025-01-01', callMinutes: 20, smsCount: 5 }] })); return; }
+      if (route === `GET ${tp}/usage`) { res.writeHead(200); res.end(JSON.stringify({ totals: { callMinutes: 123, smsOutbound: 30, smsInbound: 15, bookings: 5, transfers: 2, smsSegments: 45, numberCost: 4.0 }, series: [{ date: '2025-01-01', callMinutes: 20, smsOutbound: 3, smsInbound: 1 }], stripeActuals: { totalPaid: 5200, currency: 'usd', invoicesFound: 1 } })); return; }
       if (route === `GET ${tp}/webhooks`) { res.writeHead(200); res.end(JSON.stringify([{ id: 'wh_1', url: 'https://example.com/webhook', events: ['call.completed'] }])); return; }
       if (method === 'POST' && url === `${tp}/webhooks`) { res.writeHead(201); res.end(JSON.stringify({ id: 'wh_new', secret: 'sec_123', ...parsedBody })); return; }
       if (route === `GET ${tp}/webhooks/wh_1`) { res.writeHead(200); res.end(JSON.stringify({ id: 'wh_1', url: 'https://example.com/webhook' })); return; }

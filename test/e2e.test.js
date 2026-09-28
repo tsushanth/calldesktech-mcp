@@ -73,12 +73,12 @@ describe('calldesktech-mcp E2E', { concurrency: false }, () => {
       'list_subflows', 'create_subflow', 'get_subflow', 'update_subflow', 'delete_subflow',
       'list_knowledge_bases', 'create_knowledge_base', 'get_knowledge_base',
       'update_knowledge_base', 'add_knowledge_items', 'list_knowledge_items', 'delete_knowledge_base', 'delete_knowledge_item',
-      'list_phone_numbers', 'set_number_routing', 'search_numbers', 'buy_number',
+      'list_phone_numbers', 'set_number_routing', 'search_numbers', 'buy_number', 'port_number',
       'list_agent_environments', 'promote_agent_environment',
       'place_call', 'list_calls', 'get_call',
       'list_contacts', 'manage_contact',
-      'list_voices', 'get_voice',
-      'send_sms', 'list_sms', 'get_sms',
+      'list_voices', 'get_voice', 'create_voice', 'update_voice', 'delete_voice',
+      'send_sms', 'list_sms', 'get_sms', 'list_sms_conversations', 'get_sms_conversation',
       'get_usage',
       'list_batch_calls', 'create_batch_call', 'get_batch_call', 'run_batch_call',
       'list_webhooks', 'create_webhook', 'get_webhook', 'update_webhook', 'test_webhook', 'delete_webhook',
@@ -293,6 +293,44 @@ describe('calldesktech-mcp E2E', { concurrency: false }, () => {
     assert.strictEqual(data.id, 'pn_new');
   });
 
+  it('create_voice adds a custom voice', async () => {
+    const res = await callTool(proc, 'create_voice', { voiceId: 'custom-test', name: 'Test Voice', ttsBackend: 'elevenlabs' });
+    const data = JSON.parse(res.result?.content?.[0]?.text || '{}');
+    assert.strictEqual(data.voice?.id, 'custom-test');
+  });
+
+  it('update_voice renames a voice', async () => {
+    const res = await callTool(proc, 'update_voice', { voiceId: 'v_1', name: 'Updated Brian' });
+    const data = JSON.parse(res.result?.content?.[0]?.text || '{}');
+    assert.strictEqual(data.voice?.name, 'Updated Brian');
+  });
+
+  it('delete_voice deactivates a voice', async () => {
+    const res = await callTool(proc, 'delete_voice', { voiceId: 'v_1' });
+    const data = JSON.parse(res.result?.content?.[0]?.text || '{}');
+    assert.strictEqual(data.voice?.is_active, false);
+  });
+
+  // ---- SMS
+  it('list_sms_conversations returns threads', async () => {
+    const res = await callTool(proc, 'list_sms_conversations', { limit: 25 });
+    const data = JSON.parse(res.result?.content?.[0]?.text || '{}');
+    assert.ok(Array.isArray(data.conversations));
+  });
+
+  it('get_sms_conversation returns thread messages', async () => {
+    const res = await callTool(proc, 'get_sms_conversation', { phoneNumber: '+14155550999' });
+    const data = JSON.parse(res.result?.content?.[0]?.text || '{}');
+    assert.ok(Array.isArray(data.messages));
+  });
+
+  // ---- numbers — porting
+  it('port_number registers an existing number', async () => {
+    const res = await callTool(proc, 'port_number', { number: '+14155558888', label: 'Main Line' });
+    const data = JSON.parse(res.result?.content?.[0]?.text || '{}');
+    assert.strictEqual(data.phoneNumber?.source, 'ported');
+  });
+
   // ---- SMS
   it('send_sms sends a message', async () => {
     const res = await callTool(proc, 'send_sms', { phoneNumberId: 'pn_1', toNumber: '+14155550999', body: 'Hello from MCP' });
@@ -418,6 +456,8 @@ describe('calldesktech-mcp E2E', { concurrency: false }, () => {
       '/api/v1/tenants/test-tenant-123/voices',
       '/api/v1/tenants/test-tenant-123/voices/v_1',
       '/api/v1/tenants/test-tenant-123/sms',
+      '/api/v1/tenants/test-tenant-123/sms/conversations',
+      '/api/v1/tenants/test-tenant-123/sms/conversations/%2B14155550999',
       '/api/v1/sms/sms_1',
       '/api/v1/tenants/test-tenant-123/usage',
       '/api/v1/tenants/test-tenant-123/batch-calls',
